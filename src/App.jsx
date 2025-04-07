@@ -50,6 +50,14 @@ function App() {
     setRequiredClasses(result.neededClasses);
   };
 
+  const handleReset = () => {
+    setClasses(null);
+    setAbsents(null);
+    setBunks(null);
+    setCurrentAttendance(null);
+    setRequiredClasses(null);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 to-amber-100 px-4 py-10">
       <div className="bg-white/90 backdrop-blur-md p-8 rounded-3xl shadow-2xl max-w-md w-full border border-yellow-200 transition-all duration-300">
@@ -84,13 +92,21 @@ function App() {
             />
           </div>
 
-          {/* Button */}
-          <button
-            onClick={handleCalculate}
-            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-xl transition-all shadow-md active:scale-95"
-          >
-            🔍 Calculate
-          </button>
+          {/* Buttons */}
+          <div className="flex gap-4">
+            <button
+              onClick={handleCalculate}
+              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-xl transition-all shadow-md active:scale-95"
+            >
+              🔍 Calculate
+            </button>
+            <button
+              onClick={handleReset}
+              className="flex-1 bg-gray-200 hover:bg-gray-300 text-amber-700 font-semibold py-3 rounded-xl transition-all shadow-md active:scale-95"
+            >
+              🔄 Reset
+            </button>
+          </div>
 
           {/* Results */}
           {bunks !== null && (
