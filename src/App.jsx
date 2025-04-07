@@ -1,70 +1,118 @@
-import { useState } from 'react'
-import './App.css'
+import { useState } from 'react';
+import './App.css';
 
 function App() {
-  const [classes, setClasses] = useState(null)
-  const [absents, setAbsents] = useState(null)
-  const [bunks, setBunks] = useState(null)
+  const [classes, setClasses] = useState(null);
+  const [absents, setAbsents] = useState(null);
+  const [bunks, setBunks] = useState(null);
+  const [currentAttendance, setCurrentAttendance] = useState(null);
+  const [requiredClasses, setRequiredClasses] = useState(null);
 
-  const calculateMaxBunks = (classes, absents, threshold = 75) => {
+  const calculateStats = (classes, absents, threshold = 75) => {
+    const attended = classes - absents;
+    const currentPercent = classes > 0 ? ((attended / classes) * 100).toFixed(2) : 0;
+
     let futureBunks = 0;
-
     while (true) {
       const newTotal = classes + futureBunks;
       const newAbsent = absents + futureBunks;
-      const attendance = ((newTotal - newAbsent) / newTotal) * 100;
-
-      if (attendance < threshold) break;
-
+      const newAttendance = ((newTotal - newAbsent) / newTotal) * 100;
+      if (newAttendance < threshold) break;
       futureBunks++;
     }
 
-    return futureBunks - 1;
-  }
+    let neededClasses = 0;
+    if (currentPercent < threshold) {
+      while (true) {
+        const newTotal = classes + neededClasses;
+        const newAttendance = ((attended + neededClasses) / newTotal) * 100;
+        if (newAttendance >= threshold) break;
+        neededClasses++;
+      }
+    }
+
+    return {
+      maxBunks: futureBunks - 1,
+      currentPercent,
+      neededClasses: currentPercent < threshold ? neededClasses : 0
+    };
+  };
 
   const handleCalculate = () => {
-    const result = calculateMaxBunks(classes, absents);
-    setBunks(result);
-  }
+    if (classes === null || absents === null || classes < absents) {
+      alert("⚠️ Please enter valid class and absence values.");
+      return;
+    }
+
+    const result = calculateStats(classes, absents);
+    setBunks(result.maxBunks);
+    setCurrentAttendance(result.currentPercent);
+    setRequiredClasses(result.neededClasses);
+  };
 
   return (
-    <div className="min-h-screen bg-[#fefbe9] flex flex-col items-center justify-center px-4">
-      <div className="bg-[#fdf6e3] p-6 rounded-2xl shadow-lg max-w-md w-full">
-        <h1 className="text-3xl font-bold text-[#5c5c5c] text-center mb-6">Bunk Buddy 💤</h1>
-        <div className="flex flex-col gap-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 to-amber-100 px-4 py-10">
+      <div className="bg-white/90 backdrop-blur-md p-8 rounded-3xl shadow-2xl max-w-md w-full border border-yellow-200 transition-all duration-300">
+        <h1 className="text-4xl font-extrabold text-center text-amber-700 mb-6 drop-shadow-md tracking-tight">
+          Bunk Buddy 💤
+        </h1>
+
+        <div className="flex flex-col gap-5">
+          {/* Input: Total Classes */}
           <div>
-            <label className="block mb-1 text-[#5c5c5c] font-medium">Total Classes:</label>
+            <label className="block text-sm font-semibold text-amber-800 mb-1">📚 Total Classes</label>
             <input
               type="number"
-              value={classes}
+              min="0"
+              value={classes || ''}
               onChange={(e) => setClasses(Number(e.target.value))}
-              className="w-full p-2 rounded-xl border border-[#d6d6d6] bg-white text-[#3e3e3e]"
-              placeholder="Enter total number of classes"
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all bg-white shadow-sm placeholder:text-gray-400"
+              placeholder="e.g. 40"
             />
           </div>
+
+          {/* Input: Absents */}
           <div>
-            <label className="block mb-1 text-[#5c5c5c] font-medium">Absents:</label>
+            <label className="block text-sm font-semibold text-amber-800 mb-1">❌ Absents</label>
             <input
               type="number"
-              value={absents}
+              min="0"
+              value={absents || ''}
               onChange={(e) => setAbsents(Number(e.target.value))}
-              className="w-full p-2 rounded-xl border border-[#d6d6d6] bg-white text-[#3e3e3e]"
-              placeholder="Enter number of absents"
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all bg-white shadow-sm placeholder:text-gray-400"
+              placeholder="e.g. 6"
             />
           </div>
+
+          {/* Button */}
           <button
             onClick={handleCalculate}
-            className="mt-2 bg-[#d6a76c] hover:bg-[#c1946c] text-white font-semibold py-2 rounded-xl transition-all"
+            className="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 rounded-xl transition-all shadow-md active:scale-95"
           >
-            Calculate
+            🔍 Calculate
           </button>
-          <div className="mt-4 text-center text-[#5c5c5c] text-lg">
-            You can bunk <span className="font-bold">{bunks}</span> more classes and still stay above 75%
-          </div>
+
+          {/* Results */}
+          {bunks !== null && (
+            <div className="mt-4 text-center text-amber-800 text-lg font-medium space-y-2 animate-fade-in">
+              <p>
+                📊 Your current attendance is <span className="font-bold text-amber-700">{currentAttendance}%</span>
+              </p>
+              {currentAttendance >= 75 ? (
+                <p>
+                  ✅ You can bunk <span className="font-bold text-green-600">{bunks}</span> more classes and still stay above 75%.
+                </p>
+              ) : (
+                <p>
+                  ⚠️ You need to attend at least <span className="font-bold text-red-600">{requiredClasses}</span> more classes to reach 75%.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
