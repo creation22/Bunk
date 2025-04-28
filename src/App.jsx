@@ -17,6 +17,23 @@ function App() {
     setDarkMode(prefersDark);
   }, []);
 
+  // Auto-calculate whenever inputs change
+  useEffect(() => {
+    if (classes !== null && absents !== null && classes >= absents && classes > 0) {
+      const result = calculateStats(classes, absents, threshold);
+      setBunks(result.maxBunks);
+      setCurrentAttendance(result.currentPercent);
+      setRequiredClasses(result.neededClasses);
+      setFunMessage(getFunMessage(parseFloat(result.currentPercent)));
+    } else {
+      // Reset results if inputs are invalid
+      setBunks(null);
+      setCurrentAttendance(null);
+      setRequiredClasses(null);
+      setFunMessage("");
+    }
+  }, [classes, absents, threshold]);
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -33,49 +50,59 @@ function App() {
   };
 
   const calculateStats = (classes, absents, thresholdValue) => {
-    const attended = classes - absents;
-    const currentPercent = classes > 0 ? ((attended / classes) * 100).toFixed(2) : 0;
+    // Handle edge cases
+    if (classes <= 0) return { maxBunks: 0, currentPercent: "0.00", neededClasses: 0 };
+    if (absents < 0) absents = 0;
+    if (absents > classes) absents = classes;
     
-    // Set fun message based on attendance
-    const message = getFunMessage(parseFloat(currentPercent));
-    setFunMessage(message);
-
+    const attended = classes - absents;
+    const currentPercent = ((attended / classes) * 100).toFixed(2);
+    
+    // Calculate future bunks possible
     let futureBunks = 0;
-    while (true) {
-      const newTotal = classes + futureBunks;
-      const newAbsent = absents + futureBunks;
-      const newAttendance = ((newTotal - newAbsent) / newTotal) * 100;
-      if (newAttendance < thresholdValue) break;
-      futureBunks++;
+    // Test case: Student already below threshold
+    if (parseFloat(currentPercent) < thresholdValue) {
+      futureBunks = 0;
+    } else {
+      // Test case: Calculate maximum possible bunks
+      while (true) {
+        const newTotal = classes + futureBunks;
+        const newAbsent = absents + futureBunks;
+        // Ensure we don't divide by zero
+        if (newTotal === 0) break;
+        
+        const newAttendance = ((newTotal - newAbsent) / newTotal) * 100;
+        if (newAttendance < thresholdValue) break;
+        futureBunks++;
+        
+        // Safety check: prevent infinite loops
+        if (futureBunks > 1000) break;
+      }
     }
 
+    // Calculate classes needed to reach threshold
     let neededClasses = 0;
-    if (currentPercent < thresholdValue) {
+    if (parseFloat(currentPercent) < thresholdValue) {
+      // Test case: Calculate classes needed to reach threshold
       while (true) {
         const newTotal = classes + neededClasses;
         const newAttendance = ((attended + neededClasses) / newTotal) * 100;
         if (newAttendance >= thresholdValue) break;
         neededClasses++;
+        
+        // Safety check: prevent infinite loops
+        if (neededClasses > 1000) {
+          neededClasses = "too many"; // If unrealistic number of classes needed
+          break;
+        }
       }
     }
 
     return {
-      maxBunks: futureBunks - 1,
+      maxBunks: Math.max(0, futureBunks - 1), // Ensure no negative bunks
       currentPercent,
-      neededClasses: currentPercent < thresholdValue ? neededClasses : 0
+      neededClasses: parseFloat(currentPercent) < thresholdValue ? neededClasses : 0
     };
-  };
-
-  const handleCalculate = () => {
-    if (classes === null || absents === null || classes < absents) {
-      alert("⚠️ Please enter valid class and absence values.");
-      return;
-    }
-
-    const result = calculateStats(classes, absents, threshold);
-    setBunks(result.maxBunks);
-    setCurrentAttendance(result.currentPercent);
-    setRequiredClasses(result.neededClasses);
   };
 
   const handleReset = () => {
@@ -85,6 +112,35 @@ function App() {
     setCurrentAttendance(null);
     setRequiredClasses(null);
     setFunMessage("");
+    setThreshold(75); // Reset threshold to default
+  };
+
+  // Test case presets
+  const runTestCase = (testCase) => {
+    switch(testCase) {
+      case 'perfect':
+        // Test case: Perfect attendance
+        setClasses(40);
+        setAbsents(0);
+        break;
+      case 'critical':
+        // Test case: Exactly at threshold
+        setClasses(40);
+        setAbsents(10); // 75% attendance
+        break;
+      case 'failing':
+        // Test case: Below threshold
+        setClasses(40);
+        setAbsents(15); // 62.5% attendance
+        break;
+      case 'zero':
+        // Test case: No classes yet
+        setClasses(0);
+        setAbsents(0);
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -130,8 +186,8 @@ function App() {
             <input
               type="number"
               min="0"
-              value={classes || ''}
-              onChange={(e) => setClasses(Number(e.target.value))}
+              value={classes !== null ? classes : ''}
+              onChange={(e) => setClasses(e.target.value === '' ? null : Number(e.target.value))}
               className={`w-full px-4 py-3 rounded-xl border ${
                 darkMode 
                   ? 'bg-gray-700 border-gray-600 text-white focus:ring-purple-500' 
@@ -151,8 +207,8 @@ function App() {
             <input
               type="number"
               min="0"
-              value={absents || ''}
-              onChange={(e) => setAbsents(Number(e.target.value))}
+              value={absents !== null ? absents : ''}
+              onChange={(e) => setAbsents(e.target.value === '' ? null : Number(e.target.value))}
               className={`w-full px-4 py-3 rounded-xl border ${
                 darkMode 
                   ? 'bg-gray-700 border-gray-600 text-white focus:ring-purple-500' 
@@ -186,18 +242,8 @@ function App() {
             </div>
           </div>
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <div className="flex gap-4">
-            <button
-              onClick={handleCalculate}
-              className={`flex-1 font-semibold py-3 rounded-xl transition-all shadow-md active:scale-95 ${
-                darkMode 
-                  ? 'bg-purple-600 hover:bg-purple-500 text-white' 
-                  : 'bg-purple-500 hover:bg-purple-600 text-white'
-              }`}
-            >
-              🔍 Calculate
-            </button>
             <button
               onClick={handleReset}
               className={`flex-1 font-semibold py-3 rounded-xl transition-all shadow-md active:scale-95 ${
@@ -210,8 +256,59 @@ function App() {
             </button>
           </div>
 
+          {/* Test Cases Section */}
+          <div className={`mt-2 p-3 rounded-xl ${
+            darkMode ? 'bg-gray-700' : 'bg-purple-50'
+          }`}>
+            <p className={`text-sm font-medium mb-2 ${
+              darkMode ? 'text-purple-300' : 'text-purple-700'
+            }`}>🧪 Test Cases:</p>
+            <div className="flex flex-wrap gap-2">
+              <button 
+                onClick={() => runTestCase('perfect')}
+                className={`text-xs px-3 py-1 rounded-lg ${
+                  darkMode 
+                    ? 'bg-green-800 hover:bg-green-700 text-white' 
+                    : 'bg-green-100 hover:bg-green-200 text-green-800'
+                }`}
+              >
+                Perfect (100%)
+              </button>
+              <button 
+                onClick={() => runTestCase('critical')}
+                className={`text-xs px-3 py-1 rounded-lg ${
+                  darkMode 
+                    ? 'bg-yellow-800 hover:bg-yellow-700 text-white' 
+                    : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800'
+                }`}
+              >
+                Critical (75%)
+              </button>
+              <button 
+                onClick={() => runTestCase('failing')}
+                className={`text-xs px-3 py-1 rounded-lg ${
+                  darkMode 
+                    ? 'bg-red-800 hover:bg-red-700 text-white' 
+                    : 'bg-red-100 hover:bg-red-200 text-red-800'
+                }`}
+              >
+                Failing (62%)
+              </button>
+              <button 
+                onClick={() => runTestCase('zero')}
+                className={`text-xs px-3 py-1 rounded-lg ${
+                  darkMode 
+                    ? 'bg-gray-600 hover:bg-gray-500 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-800'
+                }`}
+              >
+                No Classes
+              </button>
+            </div>
+          </div>
+
           {/* Results - Much Bigger Box with Fun Message */}
-          {bunks !== null && (
+          {bunks !== null && currentAttendance !== null && (
             <div className={`mt-6 p-8 rounded-2xl ${
               darkMode 
                 ? 'bg-gray-700/50 border border-purple-600' 
@@ -226,7 +323,7 @@ function App() {
                   📊 Your current attendance is
                 </p>
                 <p className={`text-5xl font-bold mt-2 ${
-                  currentAttendance >= threshold 
+                  parseFloat(currentAttendance) >= threshold 
                     ? (darkMode ? 'text-green-400' : 'text-green-600') 
                     : (darkMode ? 'text-red-400' : 'text-red-600')
                 }`}>
@@ -236,7 +333,7 @@ function App() {
               
               {/* Bunks or Required Classes */}
               <div className="text-center my-6">
-                {currentAttendance >= threshold ? (
+                {parseFloat(currentAttendance) >= threshold ? (
                   <div>
                     <p className={`text-xl font-medium italic ${
                       darkMode ? 'text-green-300' : 'text-green-600'
