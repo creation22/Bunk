@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './App.css';
-
+import { SpeedInsights } from "@vercel/speed-insights/react"
 function App() {
   const [classes, setClasses] = useState(null);
   const [absents, setAbsents] = useState(null);
@@ -144,6 +144,7 @@ function App() {
   };
 
   return (
+  <div>
     <div className={`min-h-screen flex items-center justify-center transition-colors duration-500 ${
       darkMode 
         ? 'bg-gradient-to-br from-gray-900 to-purple-900 text-white' 
@@ -383,6 +384,8 @@ function App() {
         </div>
       </div>
     </div>
+    <SpeedInsights/></div>
+    
   );
 }
 
