@@ -4,10 +4,12 @@ import './App.css';
 function App() {
   const [classes, setClasses] = useState(null);
   const [absents, setAbsents] = useState(null);
+  const [threshold, setThreshold] = useState(75);
   const [bunks, setBunks] = useState(null);
   const [currentAttendance, setCurrentAttendance] = useState(null);
   const [requiredClasses, setRequiredClasses] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [funMessage, setFunMessage] = useState("");
 
   // Check system preference for dark mode on load
   useEffect(() => {
@@ -20,25 +22,39 @@ function App() {
     setDarkMode(!darkMode);
   };
 
-  const calculateStats = (classes, absents, threshold = 75) => {
+  const getFunMessage = (attendance) => {
+    if (attendance >= 90) {
+      return "Mat aya kar college! 🤓📚 Thoda break bhi le le!";
+    } else if (attendance < 75) {
+      return "College aa jaya kar bhai! 🏫 Attendance kam hai!";
+    } else {
+      return "On track! Keep it balanced! 👍";
+    }
+  };
+
+  const calculateStats = (classes, absents, thresholdValue) => {
     const attended = classes - absents;
     const currentPercent = classes > 0 ? ((attended / classes) * 100).toFixed(2) : 0;
+    
+    // Set fun message based on attendance
+    const message = getFunMessage(parseFloat(currentPercent));
+    setFunMessage(message);
 
     let futureBunks = 0;
     while (true) {
       const newTotal = classes + futureBunks;
       const newAbsent = absents + futureBunks;
       const newAttendance = ((newTotal - newAbsent) / newTotal) * 100;
-      if (newAttendance < threshold) break;
+      if (newAttendance < thresholdValue) break;
       futureBunks++;
     }
 
     let neededClasses = 0;
-    if (currentPercent < threshold) {
+    if (currentPercent < thresholdValue) {
       while (true) {
         const newTotal = classes + neededClasses;
         const newAttendance = ((attended + neededClasses) / newTotal) * 100;
-        if (newAttendance >= threshold) break;
+        if (newAttendance >= thresholdValue) break;
         neededClasses++;
       }
     }
@@ -46,7 +62,7 @@ function App() {
     return {
       maxBunks: futureBunks - 1,
       currentPercent,
-      neededClasses: currentPercent < threshold ? neededClasses : 0
+      neededClasses: currentPercent < thresholdValue ? neededClasses : 0
     };
   };
 
@@ -56,7 +72,7 @@ function App() {
       return;
     }
 
-    const result = calculateStats(classes, absents);
+    const result = calculateStats(classes, absents, threshold);
     setBunks(result.maxBunks);
     setCurrentAttendance(result.currentPercent);
     setRequiredClasses(result.neededClasses);
@@ -68,6 +84,7 @@ function App() {
     setBunks(null);
     setCurrentAttendance(null);
     setRequiredClasses(null);
+    setFunMessage("");
   };
 
   return (
@@ -80,7 +97,7 @@ function App() {
         darkMode 
           ? 'bg-gray-800/90 border-purple-700 text-white' 
           : 'bg-white/90 border-purple-200 text-gray-800'
-        } backdrop-blur-md p-8 rounded-3xl shadow-2xl max-w-md w-full border transition-all duration-300`}>
+        } backdrop-blur-md p-8 rounded-3xl shadow-2xl max-w-lg w-full border transition-all duration-300`}>
         
         {/* Header with Dark Mode Toggle */}
         <div className="flex justify-between items-center mb-6">
@@ -145,6 +162,30 @@ function App() {
             />
           </div>
 
+          {/* Custom Threshold Slider */}
+          <div>
+            <label className={`block text-sm font-semibold italic mb-1 ${
+              darkMode ? 'text-purple-300' : 'text-purple-700'
+            }`}>
+              🎯 Attendance Threshold: <span className="font-bold">{threshold}%</span>
+            </label>
+            <input
+              type="range"
+              min="50"
+              max="100"
+              value={threshold}
+              onChange={(e) => setThreshold(Number(e.target.value))}
+              className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
+                darkMode ? 'bg-gray-600' : 'bg-purple-200'
+              }`}
+            />
+            <div className="flex justify-between text-xs mt-1">
+              <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>50%</span>
+              <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>75%</span>
+              <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>100%</span>
+            </div>
+          </div>
+
           {/* Buttons */}
           <div className="flex gap-4">
             <button
@@ -169,43 +210,76 @@ function App() {
             </button>
           </div>
 
-          {/* Results - Bigger Box */}
+          {/* Results - Much Bigger Box with Fun Message */}
           {bunks !== null && (
-            <div className={`mt-6 p-6 rounded-2xl ${
+            <div className={`mt-6 p-8 rounded-2xl ${
               darkMode 
                 ? 'bg-gray-700/50 border border-purple-600' 
                 : 'bg-purple-50 border border-purple-200'
               } shadow-lg animate-fade-in transition-all duration-300`}>
-              <div className="text-center space-y-4">
+              
+              {/* Current Attendance */}
+              <div className="text-center mb-6">
                 <p className={`text-xl font-medium italic ${
                   darkMode ? 'text-purple-300' : 'text-purple-700'
                 }`}>
-                  📊 Your current attendance is <span className="font-bold text-2xl">{currentAttendance}%</span>
+                  📊 Your current attendance is
                 </p>
-                
-                {currentAttendance >= 75 ? (
-                  <p className={`text-xl font-medium italic ${
-                    darkMode ? 'text-green-300' : 'text-green-600'
-                  }`}>
-                    ✅ You can bunk <span className="font-bold text-2xl">{bunks}</span> more classes and still stay above 75%.
-                  </p>
-                ) : (
-                  <p className={`text-xl font-medium italic ${
-                    darkMode ? 'text-red-300' : 'text-red-600'
-                  }`}>
-                    ⚠️ You need to attend at least <span className="font-bold text-2xl">{requiredClasses}</span> more classes to reach 75%.
-                  </p>
-                )}
-                
-                <div className={`mt-4 pt-4 border-t ${
-                  darkMode ? 'border-gray-600' : 'border-purple-200'
+                <p className={`text-5xl font-bold mt-2 ${
+                  currentAttendance >= threshold 
+                    ? (darkMode ? 'text-green-400' : 'text-green-600') 
+                    : (darkMode ? 'text-red-400' : 'text-red-600')
                 }`}>
-                  <p className={`text-sm italic ${
-                    darkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    Keep track of your attendance to stay on target!
-                  </p>
-                </div>
+                  {currentAttendance}%
+                </p>
+              </div>
+              
+              {/* Bunks or Required Classes */}
+              <div className="text-center my-6">
+                {currentAttendance >= threshold ? (
+                  <div>
+                    <p className={`text-xl font-medium italic ${
+                      darkMode ? 'text-green-300' : 'text-green-600'
+                    }`}>
+                      ✅ You can bunk
+                    </p>
+                    <p className="text-4xl font-bold mt-2">
+                      {bunks} <span className="text-2xl">more classes</span>
+                    </p>
+                    <p className={`text-lg font-medium italic mt-1 ${
+                      darkMode ? 'text-green-300' : 'text-green-600'
+                    }`}>
+                      and still stay above {threshold}%
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className={`text-xl font-medium italic ${
+                      darkMode ? 'text-red-300' : 'text-red-600'
+                    }`}>
+                      ⚠️ You need to attend at least
+                    </p>
+                    <p className="text-4xl font-bold mt-2">
+                      {requiredClasses} <span className="text-2xl">more classes</span>
+                    </p>
+                    <p className={`text-lg font-medium italic mt-1 ${
+                      darkMode ? 'text-red-300' : 'text-red-600'
+                    }`}>
+                      to reach {threshold}%
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Fun Message */}
+              <div className={`mt-6 pt-4 border-t ${
+                darkMode ? 'border-gray-600' : 'border-purple-200'
+              }`}>
+                <p className={`text-xl font-bold italic text-center ${
+                  darkMode ? 'text-yellow-300' : 'text-yellow-600'
+                }`}>
+                  {funMessage} 😎
+                </p>
               </div>
             </div>
           )}
