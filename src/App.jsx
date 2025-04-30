@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import { SpeedInsights } from "@vercel/speed-insights/react"
+import { Analytics } from "@vercel/analytics/react"
 function App() {
   const [classes, setClasses] = useState(null);
   const [absents, setAbsents] = useState(null);
@@ -384,7 +385,9 @@ function App() {
         </div>
       </div>
     </div>
-    <SpeedInsights/></div>
+    <SpeedInsights/>
+    <Analytics/>
+    </div>
     
   );
 }
